@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "838093250850",
+    "project_id": "auth-app-david",
+    "storage_bucket": "auth-app-david.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838093250850:android:df0ffb43b06a35cc3c057b",
+        "android_client_info": {
+          "package_name": "com.example.auth_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeV0kdML5xqoe3lQrzoU_uOVSqrZbf9-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838093250850:android:a9e3cd4dbe9fabd73c057b",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeV0kdML5xqoe3lQrzoU_uOVSqrZbf9-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

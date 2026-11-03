@@ -31,6 +31,11 @@ class PinStorage {
     return _hash(pin, salt) == hash;
   }
 
+  static Future<void> clear() async {
+    await _storage.delete(key: _hashKey);
+    await _storage.delete(key: _saltKey);
+  }
+
   static String _hash(String pin, String salt) {
     return sha256.convert(utf8.encode('$salt:$pin')).toString();
   }

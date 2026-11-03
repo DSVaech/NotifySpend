@@ -42,7 +42,7 @@ class LoginPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Tus gastos se registran solos.\nTus datos nunca salen del teléfono.',
+                  'Tus gastos, claros y al día.\nProtegidos con tu PIN.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: kTextSecondary,
@@ -78,7 +78,7 @@ class LoginPage extends StatelessWidget {
                     Icon(Icons.verified_user_outlined, color: kPrimary, size: 14),
                     SizedBox(width: 8),
                     Text(
-                      'Cifrado en el dispositivo · funciona sin internet',
+                      'Protegido con PIN · sincronizado con tu cuenta',
                       style: TextStyle(color: kTextSecondary, fontSize: 12),
                     ),
                   ],
@@ -121,7 +121,7 @@ class _FingerprintSensor extends StatelessWidget {
             height: 132,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF0D3A3E),
+              color: kPrimarySurface,
               border: Border.all(
                 color: kPrimary.withValues(alpha: 0.45),
                 width: 1,
@@ -132,7 +132,7 @@ class _FingerprintSensor extends StatelessWidget {
               color: kPrimary,
               size: 64,
               shadows: [
-                Shadow(color: kPrimary.withValues(alpha: 0.6), blurRadius: 16),
+                Shadow(color: kPrimary.withValues(alpha: 0.25), blurRadius: 16),
               ],
             ),
           ),

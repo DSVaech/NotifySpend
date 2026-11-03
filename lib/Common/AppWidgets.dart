@@ -34,7 +34,7 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// Ícono dentro de un círculo verde azulado, usado como encabezado de pantallas.
+/// Ícono dentro de un círculo azul pizarra, usado como encabezado de pantallas.
 class CircleIcon extends StatelessWidget {
   const CircleIcon(this.icon, {super.key, this.size = 56});
 
@@ -48,12 +48,43 @@ class CircleIcon extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFF0D3A3E),
+        color: kPrimarySurface,
         border: Border.all(color: kPrimary.withValues(alpha: 0.45)),
       ),
       child: Icon(icon, color: kPrimary, size: size * 0.45),
     );
   }
+}
+
+/// Estilo de los campos de texto: fondo oscuro y borde verde al enfocar.
+InputDecoration appInputDecoration({
+  String? hint,
+  String? prefix,
+  IconData? icon,
+}) {
+  OutlineInputBorder border(Color color) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: color),
+      );
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: kTextSecondary),
+    prefixText: prefix,
+    prefixStyle: const TextStyle(
+      color: kPrimary,
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+    ),
+    prefixIcon: icon == null ? null : Icon(icon, color: kTextSecondary),
+    filled: true,
+    fillColor: kButtonBackground,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    enabledBorder: border(kButtonBorder),
+    focusedBorder: border(kPrimary),
+    errorBorder: border(kError),
+    focusedErrorBorder: border(kError),
+    errorStyle: const TextStyle(color: kError),
+  );
 }
 
 class PrimaryButton extends StatelessWidget {
@@ -72,7 +103,7 @@ class PrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: kPrimary,
           foregroundColor: kBackground,
-          disabledBackgroundColor: kButtonBackground,
+          disabledBackgroundColor: kButtonBorder,
           disabledForegroundColor: kTextSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

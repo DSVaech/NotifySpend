@@ -1,13 +1,18 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_application_1/Common/AppColors.dart';
 import 'package:flutter_application_1/Common/AppWidgets.dart';
+import 'package:flutter_application_1/Common/AuthService.dart';
+import 'package:flutter_application_1/Common/Formatos.dart';
+import 'package:flutter_application_1/Common/PerfilService.dart';
 import 'package:flutter_application_1/Common/Routers.dart';
-import 'package:flutter_application_1/Common/UserStorage.dart';
 
-/// Configuración inicial: bienvenida → nombre → permiso de notificaciones →
-/// presupuesto mensual. Al terminar lleva a crear el PIN.
+/// Configuración inicial: bienvenida → nombre → presupuesto mensual. Al
+/// terminar lleva a crear el PIN. El nombre se guarda en la cuenta y el
+/// presupuesto en Firestore; si la cuenta ya tiene nombre, se propone ese.
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
 
@@ -16,7 +21,7 @@ class OnboardingPage extends StatefulWidget {
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
-  static const int _stepCount = 4;
+  static const int _stepCount = 3;
 
   final PageController _pageController = PageController();
   final TextEditingController _nombreController = TextEditingController();
@@ -27,6 +32,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   void initState() {
     super.initState();
+    _nombreController.text = AuthService.nombre ?? '';
     _nombreController.addListener(() => setState(() {}));
     _presupuestoController.addListener(() => setState(() {}));
   }
@@ -39,11 +45,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  double? get _presupuesto {
-    final digits = _presupuestoController.text.replaceAll('.', '');
-    final value = double.tryParse(digits);
-    return value == null || value <= 0 ? null : value;
-  }
+  double? get _presupuesto => parseMonto(_presupuestoController.text);
 
   void _goTo(int step) {
     FocusScope.of(context).unfocus();
@@ -61,20 +63,23 @@ class _OnboardingPageState extends State<OnboardingPage> {
     if (_step > 0) _goTo(_step - 1);
   }
 
-  void _requestNotificationAccess() {
-    // TODO: abrir el ajuste de Android "Acceso a notificaciones" cuando se
-    // implemente el servicio que lee las notificaciones.
-    _next();
-  }
-
   Future<void> _finish() async {
     final presupuesto = _presupuesto;
     if (presupuesto == null) return;
+    final nombre = _nombreController.text.trim();
     setState(() => _saving = true);
-    await UserStorage.saveProfile(
-      nombre: _nombreController.text.trim(),
-      presupuesto: presupuesto,
-    );
+    try {
+      await AuthService.guardarNombre(nombre);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensajeDeError(e))),
+      );
+      return;
+    }
+    // Firestore lo guarda en su caché al instante; no esperamos al servidor.
+    unawaited(PerfilService.guardarPresupuesto(presupuesto));
     if (!mounted) return;
     setState(() => _saving = false);
     context.push(ROUTE_PIN);
@@ -127,10 +132,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         onContinue: _nombreController.text.trim().isEmpty
                             ? null
                             : _next,
-                      ),
-                      _NotificationsStep(
-                        onAllow: _requestNotificationAccess,
-                        onSkip: _next,
                       ),
                       _BudgetStep(
                         nombre: _nombreController.text.trim(),
@@ -304,28 +305,6 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-InputDecoration _inputDecoration({String? hint, String? prefix}) {
-  OutlineInputBorder border(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: color),
-      );
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: kTextSecondary),
-    prefixText: prefix,
-    prefixStyle: const TextStyle(
-      color: kPrimary,
-      fontSize: 22,
-      fontWeight: FontWeight.w700,
-    ),
-    filled: true,
-    fillColor: kButtonBackground,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-    enabledBorder: border(kButtonBorder),
-    focusedBorder: border(kPrimary),
-  );
-}
-
 class _WelcomeStep extends StatelessWidget {
   const _WelcomeStep({required this.onStart});
 
@@ -343,7 +322,7 @@ class _WelcomeStep extends StatelessWidget {
             Icon(Icons.verified_user_outlined, color: kPrimary, size: 14),
             SizedBox(width: 8),
             Text(
-              'Cifrado en el dispositivo · funciona sin internet',
+              'Protegido con PIN · sincronizado con tu cuenta',
               style: TextStyle(color: kTextSecondary, fontSize: 12),
             ),
           ],
@@ -365,15 +344,15 @@ class _WelcomeStep extends StatelessWidget {
         ),
         SizedBox(height: 12),
         Text(
-          'Controla tus gastos sin escribir nada.',
+          'Controla tus gastos en segundos.',
           textAlign: TextAlign.center,
           style: TextStyle(color: kTextSecondary, fontSize: 15),
         ),
         SizedBox(height: 36),
         _FeatureRow(
-          icon: Icons.notifications_active_outlined,
-          title: 'Registro automático',
-          description: 'Leemos tus notificaciones de pago y anotamos cada gasto.',
+          icon: Icons.add_card_rounded,
+          title: 'Registro rápido',
+          description: 'Anota cada gasto con su monto y categoría, y listo.',
         ),
         _FeatureRow(
           icon: Icons.bar_chart_rounded,
@@ -381,9 +360,9 @@ class _WelcomeStep extends StatelessWidget {
           description: 'Gráficas por categoría, semana y mes.',
         ),
         _FeatureRow(
-          icon: Icons.lock_outline_rounded,
-          title: 'Privado de verdad',
-          description: 'Tus datos se quedan en el teléfono, cifrados.',
+          icon: Icons.cloud_done_outlined,
+          title: 'Siempre contigo',
+          description: 'Tus gastos se guardan en tu cuenta, aunque cambies de teléfono.',
         ),
       ],
     );
@@ -404,7 +383,8 @@ class _NameStep extends StatelessWidget {
         const _StepHeader(
           icon: Icons.person_outline_rounded,
           title: '¿Cómo te llamas?',
-          subtitle: 'Así personalizamos tu tablero.',
+          subtitle:
+              'Así personalizamos tu tablero. Se guarda en tu cuenta para que no tengas que escribirlo de nuevo.',
         ),
         TextField(
           controller: controller,
@@ -413,50 +393,10 @@ class _NameStep extends StatelessWidget {
           maxLength: 40,
           style: const TextStyle(color: kTextPrimary, fontSize: 18),
           cursorColor: kPrimary,
-          decoration: _inputDecoration(hint: 'Tu nombre').copyWith(
+          decoration: appInputDecoration(hint: 'Tu nombre').copyWith(
             counterText: '',
           ),
           onSubmitted: (_) => onContinue?.call(),
-        ),
-      ],
-    );
-  }
-}
-
-class _NotificationsStep extends StatelessWidget {
-  const _NotificationsStep({required this.onAllow, required this.onSkip});
-
-  final VoidCallback onAllow;
-  final VoidCallback onSkip;
-
-  @override
-  Widget build(BuildContext context) {
-    return _StepLayout(
-      actions: [
-        PrimaryButton(label: 'Dar permiso', onPressed: onAllow),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: onSkip,
-          style: TextButton.styleFrom(foregroundColor: kTextSecondary),
-          child: const Text('Ahora no'),
-        ),
-      ],
-      children: const [
-        _StepHeader(
-          icon: Icons.notifications_active_outlined,
-          title: 'Permite leer tus notificaciones',
-          subtitle:
-              'Así registramos tus gastos solos cada vez que pagas con tu banco o billetera digital.',
-        ),
-        _FeatureRow(
-          icon: Icons.account_balance_outlined,
-          title: 'Solo pagos',
-          description: 'Leemos notificaciones de bancos, billeteras y facturas.',
-        ),
-        _FeatureRow(
-          icon: Icons.phone_android_rounded,
-          title: 'Nada sale del teléfono',
-          description: 'El texto se procesa en el dispositivo, sin internet.',
         ),
       ],
     );
@@ -486,19 +426,19 @@ class _BudgetStep extends StatelessWidget {
           icon: Icons.account_balance_wallet_outlined,
           title: 'Define tu presupuesto',
           subtitle:
-              '$greeting¿cuánto quieres gastar al mes? Te avisaremos cuando te acerques al límite.',
+              '$greeting¿cuánto quieres gastar al mes? En tu tablero verás cuánto te queda.',
         ),
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          inputFormatters: [_ThousandsFormatter()],
+          inputFormatters: [ThousandsFormatter()],
           style: const TextStyle(
             color: kTextPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
           cursorColor: kPrimary,
-          decoration: _inputDecoration(hint: '0', prefix: '\$ '),
+          decoration: appInputDecoration(hint: '0', prefix: '\$ '),
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -522,43 +462,7 @@ class _BudgetStep extends StatelessWidget {
             );
           }).toList(),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Podrás cambiarlo y definir límites por categoría en Configuración.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kTextSecondary, fontSize: 13),
-        ),
       ],
-    );
-  }
-}
-
-/// Formatea dígitos con punto como separador de miles: 1500000 → 1.500.000.
-String formatThousands(String digits) {
-  final clean = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
-  final buffer = StringBuffer();
-  for (var i = 0; i < clean.length; i++) {
-    if (i > 0 && (clean.length - i) % 3 == 0) buffer.write('.');
-    buffer.write(clean[i]);
-  }
-  return buffer.toString();
-}
-
-class _ThousandsFormatter extends TextInputFormatter {
-  static const int _maxDigits = 12;
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return const TextEditingValue();
-    if (digits.length > _maxDigits) return oldValue;
-    final text = formatThousands(digits);
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }
